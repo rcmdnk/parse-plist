@@ -27,6 +27,7 @@ class ParsePlist:
         self.data = False
         self.dic = False
         self.array = False
+        self.alltype = False
         for k, v in kw.items():
             if k == 'date':
                 self.date = v
@@ -36,15 +37,17 @@ class ParsePlist:
                 self.dic = v
             elif k == 'array':
                 self.array = v
+            elif k == 'alltype':
+                self.alltype = v
 
     def check_value(self, node):
-        if node.nodeName == 'date' and not self.date:
+        if node.nodeName == 'date' and (not self.date or self.alltype):
             return False
-        elif node.nodeName == 'data' and not self.data:
+        elif node.nodeName == 'data' and (not self.data or self.alltype):
             return False
-        elif node.nodeName == 'dict' and not self.dic:
+        elif node.nodeName == 'dict' and (not self.dic or self.alltype):
             return False
-        elif node.nodeName == 'array' and not self.array:
+        elif node.nodeName == 'array' and (not self.array or self.alltype):
             return False
         return True
 
@@ -133,11 +136,11 @@ class ParsePlist:
         for k in dic.keys():
             if type(dic[k]) == unicode or type(dic[k]) == str:
                 if dic[k].startswith('date:'):
-                    if self.date:
+                    if self.date or self.alltype:
                         cmds.append('defaults write %s "%s" -date "%s"' %
                                     (domain, k, dic[k].replace("date:", "")))
                 elif dic[k].startswith('data:'):
-                    if self.data:
+                    if self.data or self.alltype:
                         cmds.append('defaults write "%s" "%s" -data "%s"' %
                                     (domain, k, dic[k].replace("data:", "")))
                 else:
@@ -153,11 +156,13 @@ class ParsePlist:
                 cmds.append('defaults write "%s" "%s" -float %s' %
                             (domain, k, dic[k]))
             elif type(dic[k]) == list and self.array:
-                cmds.append('defaults write "%s" "%s" -array %s' %
-                            (domain, k, dic[k]))
+                if self.array or self.alltype:
+                    cmds.append('defaults write "%s" "%s" -array %s' %
+                                (domain, k, dic[k]))
             elif type(dic[k]) == dict and self.dic:
-                cmds.append('defaults write "%s" "%s" -dict "%s"' %
-                            (domain, k, dic[k]))
+                if self.dic or self.alltype:
+                    cmds.append('defaults write "%s" "%s" -dict "%s"' %
+                                (domain, k, dic[k]))
         return cmds
 
     def get_xml(self, domain):
@@ -221,6 +226,8 @@ def main():
     argparser.add_argument(
         "--array", action="store_true", default=False, dest='array')
     argparser.add_argument(
+        "--all", action="store_true", default=False, dest='alltype')
+    argparser.add_argument(
         "--user", action="store_true", default=False, dest='user')
     argparser.add_argument(
         "--system", action="store_true", default=False, dest='system')
@@ -232,11 +239,6 @@ def main():
 
     import sys
     import os
-
-    if params['user'] or params['system']:
-        if os.geteuid() != 0:
-            import getpass
-            sudopass = getpass.getpass("sudo password: ")
 
     parser = ParsePlist(**params)
 
@@ -258,36 +260,30 @@ def main():
     cmds_current = parser.get_cmd(domain, plist, input_type)
     cmds = []
 
-    def move_dir(src, dst, passwd):
+    def move_dir(src, dst):
         cmd = 'mv "%s" "%s"' % (src, dst)
-        if passwd == '':
-            os.system(cmd)
-        else:
-            os.system('echo %s|sudo -S %s' % (passwd, cmd))
+        os.system('sudo %s' % (cmd))
 
-    def remove_dir(src, passwd):
+    def remove_dir(src):
         cmd = 'rm -rf "%s"' % (src)
-        if passwd == '':
-            os.system(cmd)
-        else:
-            os.system('echo %s|sudo -S %s' % (passwd, cmd))
+        os.system('sudo %s' % (cmd))
 
     def get_diff(parent_dir):
         preferences = parent_dir + '/Library/Preferences'
         for ext in ['.tmp', '.bak']:
             if os.path.isdir(preferences+ext):
-                remove_dir(preferences+ext, sudopass)
+                remove_dir(preferences+ext)
         try:
-            move_dir(preferences, preferences+'.bak', sudopass)
+            move_dir(preferences, preferences+'.bak')
             cmds_orig = parser.get_cmd(domain, plist, input_type)
             if os.path.isdir(preferences):
-                move_dir(preferences, preferences+'.tmp', sudopass)
-            move_dir(preferences+'.bak', preferences, sudopass)
+                move_dir(preferences, preferences+'.tmp')
+            move_dir(preferences+'.bak', preferences)
         except KeyboardInterrupt:
             if os.path.isdir(preferences+'.bak'):
                 if os.path.isdir(preferences):
-                    move_dir(preferences, preferences+'.tmp', sudopass)
-                move_dir(preferences+'.bak', preferences, sudopass)
+                    move_dir(preferences, preferences+'.tmp')
+                move_dir, sudopass(preferences+'.bak', preferences)
             sys.exit(1)
 
         return [x for x in cmds_current if x not in cmds_orig]
