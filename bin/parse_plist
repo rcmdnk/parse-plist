@@ -260,9 +260,10 @@ def main():
     if not params['user'] and not params['system']:
         cmds = cmds_current
 
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
     for c in cmds:
         print c
-
 
 if __name__ == "__main__":
     main()
