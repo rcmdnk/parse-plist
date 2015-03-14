@@ -1,0 +1,15 @@
+language: objective-c
+branches:
+  except:
+    - /^v[0-9]/
+install:
+  - brew tap rcmdnk/rcmdnkpac
+  - brew install parse-plist
+script:
+  - parse-plist
+notifications:
+  email:
+    recipients:
+      - rcmdnk@gmail.com
+    on_success: change
+    on_failure: always
