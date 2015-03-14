@@ -6,7 +6,11 @@ install:
   - brew tap rcmdnk/rcmdnkpac
   - brew install parse-plist
 script:
+  - parse-plist com.apple.dock
   - parse-plist
+  - parse-plist --user
+  - parse-plist --all
+  - parse-plist --out=json
 notifications:
   email:
     recipients:

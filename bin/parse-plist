@@ -28,84 +28,24 @@ class ParsePlist:
         self.dic = False
         self.array = False
         self.alltype = False
+        self.out = 'cmd'
         for k, v in kw.items():
             if k == 'date':
                 self.date = v
             elif k == 'data':
                 self.data = v
-            elif k == 'dic':
+            elif k == 'dict':
                 self.dic = v
             elif k == 'array':
                 self.array = v
             elif k == 'alltype':
                 self.alltype = v
-
-    def check_value(self, node):
-        if node.nodeName == 'date' and (not self.date or self.alltype):
-            return False
-        elif node.nodeName == 'data' and (not self.data or self.alltype):
-            return False
-        elif node.nodeName == 'dict' and (not self.dic or self.alltype):
-            return False
-        elif node.nodeName == 'array' and (not self.array or self.alltype):
-            return False
-        return True
-
-    def check_node(self, node):
-        if node.nodeType == node.ELEMENT_NODE:
-            child0 = node.childNodes[0].nodeValue\
-                if len(node.childNodes) > 0 else ''
-            if node.nodeName == 'plist':
-                for n in node.childNodes:
-                    if n.nodeType == n.ELEMENT_NODE:
-                        if n.nodeName == 'dict':
-                            return self.check_node(n)
-            elif node.nodeName == 'dict':
-                d = {}
-                n = node.firstChild
-                while n:
-                    if n.nodeType == node.ELEMENT_NODE:
-                        if n.nodeName == 'key':
-                            name = n.childNodes[0].nodeValue
-                            n = n.nextSibling
-                            while n.nodeType != node.ELEMENT_NODE:
-                                n = n.nextSibling
-                            if self.check_value(n):
-                                d.update({name: self.check_node(n)})
-                        else:
-                            if self.check_value(n):
-                                d.update(self.check_node(n))
-                    n = n.nextSibling
-                return d
-            elif node.nodeName == 'array':
-                a = []
-                n = node.firstChild
-                while n:
-                    if n.nodeType == n.ELEMENT_NODE:
-                        if n.nodeName == 'key':
-                            name = child0
-                            n = n.nextSibling
-                            if self.check_value(n):
-                                a.append({name: self.check_node(n)})
-                        else:
-                            if self.check_value(n):
-                                a.append(self.check_node(n))
-                    n = n.nextSibling
-                return a
-            elif node.nodeName == 'string':
-                return unicode(child0)
-            elif node.nodeName == 'true':
-                return True
-            elif node.nodeName == 'false':
-                return False
-            elif node.nodeName == 'integer':
-                return int(child0)
-            elif node.nodeName == 'real':
-                return float(child0)
-            elif node.nodeName == 'date':
-                return str("date:"+child0)
-            elif node.nodeName == 'data':
-                return str("data:"+child0)
+            elif k == 'out':
+                if v in ['dict', 'dic', 'json']:
+                    self.out = 'dict'
+                else:
+                    # v in ['cmd', 'cmds', 'command', 'commands', 'defaults']:
+                    self.out = 'cmd'
 
     def xml_to_json(self, plist=''):
         if plist == '' or plist.endswith('.xml'):
@@ -122,47 +62,55 @@ class ParsePlist:
             communicate(input=plist)[0]
 
     def xml_to_dict(self, plist=''):
-        # from xml.dom import minidom
         if plist == '' or plist.endswith('.xml'):
             plist = self.get_xml(plist)
-        # import re
-        # dom = minidom.parseString(re.sub('[\x00-\x08\x0D-\x1F]', '', plist))
-        # return self.check_node(dom.documentElement)
         import json
         return json.loads(self.xml_to_json(plist))
 
     def dict_to_cmd(self, domain, dic):
         cmds = []
-        for k in dic.keys():
-            if type(dic[k]) == unicode or type(dic[k]) == str:
-                if dic[k].startswith('date:'):
+        for k, v in dic.items():
+            if type(v) == unicode or type(v) == str:
+                if v.startswith('date:'):
                     if self.date or self.alltype:
                         cmds.append('defaults write %s "%s" -date "%s"' %
-                                    (domain, k, dic[k].replace("date:", "")))
-                elif dic[k].startswith('data:'):
+                                    (domain, k, v.replace("date:", "")))
+                elif v.startswith('data:'):
                     if self.data or self.alltype:
                         cmds.append('defaults write "%s" "%s" -data "%s"' %
-                                    (domain, k, dic[k].replace("data:", "")))
+                                    (domain, k, v.replace("data:", "")))
                 else:
                     cmds.append('defaults write "%s" "%s" -string "%s"' %
-                                (domain, k, dic[k]))
-            elif type(dic[k]) == bool:
+                                (domain, k, v))
+            elif type(v) == bool:
                 cmds.append('defaults write "%s" "%s" -bool %s' %
-                            (domain, k, dic[k]))
-            elif type(dic[k]) == int:
+                            (domain, k, v))
+            elif type(v) == int:
                 cmds.append('defaults write "%s" "%s" -int %s' %
-                            (domain, k, dic[k]))
-            elif type(dic[k]) == float:
+                            (domain, k, v))
+            elif type(v) == float:
                 cmds.append('defaults write "%s" "%s" -float %s' %
-                            (domain, k, dic[k]))
-            elif type(dic[k]) == list and self.array:
-                if self.array or self.alltype:
-                    cmds.append('defaults write "%s" "%s" -array %s' %
-                                (domain, k, dic[k]))
-            elif type(dic[k]) == dict and self.dic:
+                            (domain, k, v))
+            elif type(v) == dict:
                 if self.dic or self.alltype:
                     cmds.append('defaults write "%s" "%s" -dict "%s"' %
-                                (domain, k, dic[k]))
+                                (domain, k, v))
+            elif type(v) == list:
+                if self.array or self.alltype:
+                    cmd = 'defaults write "%s" "%s" -array' % (domain, k)
+                    for v2 in v:
+                        if type(v2) == unicode or type(v2) == str:
+                            if v2.startswith('date:'):
+                                cmd += ' "%s"' % (v2.replace("date:", ""))
+                            elif v2.startswith('data:'):
+                                cmd += ' "%s"' % (v2.replace("data:", ""))
+                            else:
+                                cmd += ' "%s"' % (v2)
+                        elif type(v2) == dict:
+                            cmd += ' "%s"' % (v2)
+                        else:
+                            cmd += ' %s' % (v2)
+                    cmds.append(cmd)
         return cmds
 
     def get_xml(self, domain):
@@ -185,33 +133,70 @@ class ParsePlist:
             sys.exit(ret)
         return out
 
+    def get_domains(self):
+        import subprocess
+        cmd = 'defaults domains'.split()
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        out = p.communicate()[0]
+        ret = p.returncode
+        if ret != 0:
+            import sys
+            print "ERROR: Failed to get domains:"
+            print ""
+            print "$ " + cmd
+            print out
+            sys.exit(ret)
+        return [x.strip() for x in out.split(',')]
+
+    def get_dict(self, domain='', plist='', input_type='domain'):
+        if domain == '':
+            dic = {}
+            for d in self.get_domains():
+                dic.update(self.get_dict(d))
+            return dic
+        out = plist
+        if plist == '':
+            out = self.get_xml(domain)
+        if input_type != 'dict':
+            out = self.xml_to_dict(out)
+        dic = {domain: {}}
+        for k, v in out.items():
+            if type(v) == unicode or type(v) == str:
+                if v.startswith('date:') and\
+                        not self.date and not self.alltype:
+                    continue
+                elif v.startswith('data:') and\
+                        not self.data and not self.alltype:
+                    continue
+            elif type(v) == list:
+                if not self.array and not self.alltype:
+                    continue
+            elif type(v) == dict:
+                if not self.dic and not self.alltype:
+                    continue
+            dic[k] = v
+        return {domain: dic}
+
     def get_cmd(self, domain='', plist='', input_type='domain'):
         if domain == '':
-            import subprocess
-            cmd = 'defaults domains'.split()
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                 stderr=subprocess.STDOUT)
-            out = p.communicate()[0]
-            ret = p.returncode
-            if ret != 0:
-                import sys
-                print "ERROR: Failed to get domains:"
-                print ""
-                print "$ " + cmd
-                print out
-                sys.exit(ret)
-            domains = [x.strip() for x in out.split(',')]
             cmds = []
-            for d in domains:
+            for d in self.get_domains():
                 cmds += self.get_cmd(d)
             return cmds
-
         out = plist
         if plist == '':
             out = self.get_xml(domain)
         if input_type != 'dict':
             out = self.xml_to_dict(out)
         return self.dict_to_cmd(domain, out)
+
+    def get(self, domain='', plist='', input_type='domain', out=''):
+        o = out if out != '' else self.out
+        if o == 'cmd':
+            return self.get_cmd(domain, plist, input_type)
+        elif o == 'dict':
+            return self.get_dict(domain, plist, input_type)
 
 
 def main():
@@ -222,7 +207,7 @@ def main():
     argparser.add_argument(
         "--data", action="store_true", default=False, dest='data')
     argparser.add_argument(
-        "--dict", action="store_true", default=False, dest='dic')
+        "--dict", action="store_true", default=False, dest='dict')
     argparser.add_argument(
         "--array", action="store_true", default=False, dest='array')
     argparser.add_argument(
@@ -232,7 +217,7 @@ def main():
     argparser.add_argument(
         "--system", action="store_true", default=False, dest='system')
     argparser.add_argument(
-        "-o", "--out", action="store", default='defaults', dest='out')
+        "-o", "--out", action="store", default='cmd', dest='out')
 
     (ns, args) = argparser.parse_known_args()
     params = vars(ns)
@@ -249,7 +234,6 @@ def main():
         domain = args[0]
     if domain.endswith('.xml'):
         if len(args) == 1:
-            print "Need domain name for xml file"
             sys.exit(1)
         domain = args[1]
         plist = domain
@@ -257,48 +241,78 @@ def main():
     elif domain.endswith('.plist'):
         domain = domain.split('/')[-1].replace('.plist', '')
 
-    cmds_current = parser.get_cmd(domain, plist, input_type)
-    cmds = []
+    current_list = parser.get(domain, plist, input_type)
+    if type(current_list) == list:
+        out_list = []
+    elif type(current_list) == dict:
+        out_list = {}
+    else:
+        out_list = ""
 
-    def move_dir(src, dst):
-        cmd = 'mv "%s" "%s"' % (src, dst)
-        os.system('sudo %s' % (cmd))
+    def move_dir(src, dst, sudo=False):
+        cmd = '%s mv "%s" "%s"' % ('sudo' if sudo else '', src, dst)
+        os.system(cmd)
 
-    def remove_dir(src):
-        cmd = 'rm -rf "%s"' % (src)
-        os.system('sudo %s' % (cmd))
+    def remove_dir(src, sulse, sudo=False):
+        cmd = '%s rm -rf "%s"' % ('sudo' if sudo else '', src)
+        os.system(cmd)
 
-    def get_diff(parent_dir):
+    def get_diff(parent_dir=''):
+        sudo = True if parent_dir == '' else False
         preferences = parent_dir + '/Library/Preferences'
         for ext in ['.tmp', '.bak']:
             if os.path.isdir(preferences+ext):
-                remove_dir(preferences+ext)
+                remove_dir(preferences+ext, sudo)
         try:
-            move_dir(preferences, preferences+'.bak')
-            cmds_orig = parser.get_cmd(domain, plist, input_type)
+            move_dir(preferences, preferences+'.bak', sudo)
+            orig = parser.get(domain, plist, input_type)
             if os.path.isdir(preferences):
-                move_dir(preferences, preferences+'.tmp')
-            move_dir(preferences+'.bak', preferences)
+                move_dir(preferences, preferences+'.tmp', sudo)
+            move_dir(preferences+'.bak', preferences, sudo)
         except KeyboardInterrupt:
             if os.path.isdir(preferences+'.bak'):
                 if os.path.isdir(preferences):
-                    move_dir(preferences, preferences+'.tmp')
-                move_dir, sudopass(preferences+'.bak', preferences)
+                    move_dir(preferences, preferences+'.tmp', sudo)
+                move_dir(preferences+'.bak', preferences, sudo)
             sys.exit(1)
 
-        return [x for x in cmds_current if x not in cmds_orig]
+        if type(current_list) == list:
+            return [x for x in current_list if x not in orig]
+        elif type(current_list) == dict:
+            dic = {}
+            for k, v in current_list.items():
+                if k not in orig:
+                    dic[k] = v
+                else:
+                    dic[k] = {}
+                    for k2, v2 in v.items():
+                        if k2 not in orig[k] or v2 != orig[k][k2]:
+                            dic[k][k2] = v2
+                if len(dic[k]) == 0:
+                    dic.pop(k)
+            return dic
 
     if params['user']:
-        cmds += get_diff(os.environ.get('HOME'))
+        if type(current_list) == list:
+            out_list += get_diff(os.environ.get('HOME'))
+        elif type(current_list) == dict:
+            out_list.update(get_diff(os.environ.get('HOME')))
     if params['system']:
-        cmds += get_diff('')
+        if type(current_list) == list:
+            out_list += get_diff()
+        elif type(current_list) == dict:
+            out_list.update(get_diff())
     if not params['user'] and not params['system']:
-        cmds = cmds_current
+        out_list = current_list
 
     import codecs
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
-    for c in cmds:
-        print c
+    if type(out_list) == list:
+        for c in out_list:
+            print c
+    elif type(out_list) == dict:
+        import json
+        print json.dumps(out_list, indent=2)
 
 if __name__ == "__main__":
     main()
