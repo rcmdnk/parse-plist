@@ -104,20 +104,45 @@ class ParsePlist:
             elif node.nodeName == 'data':
                 return str("data:"+child0)
 
-    def xml_to_dict(self, plist=''):
-        from xml.dom import minidom
+    def xml_to_json(self, plist=''):
         if plist == '' or plist.endswith('.xml'):
             plist = self.get_xml(plist)
-        import re
-        dom = minidom.parseString(re.sub('[\x00-\x08\x0D-\x1F]', '', plist))
-        return self.check_node(dom.documentElement)
+        cmd = 'plutil -convert json -o - -'.split()
+        plist = plist.replace('<data>', '<string>data:')
+        plist = plist.replace('</data>', '</string>')
+        plist = plist.replace('<date>', '<string>date:')
+        plist = plist.replace('</date>', '</string>')
+        import subprocess
+        return subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT).\
+            communicate(input=plist)[0]
+
+    def xml_to_dict(self, plist=''):
+        # from xml.dom import minidom
+        if plist == '' or plist.endswith('.xml'):
+            plist = self.get_xml(plist)
+        # import re
+        # dom = minidom.parseString(re.sub('[\x00-\x08\x0D-\x1F]', '', plist))
+        # return self.check_node(dom.documentElement)
+        import json
+        return json.loads(self.xml_to_json(plist))
 
     def dict_to_cmd(self, domain, dic):
         cmds = []
         for k in dic.keys():
-            if type(dic[k]) == unicode:
-                cmds.append('defaults write "%s" "%s" -string "%s"' %
-                            (domain, k, dic[k]))
+            if type(dic[k]) == unicode or type(dic[k]) == str:
+                if dic[k].startswith('date:'):
+                    if self.date:
+                        cmds.append('defaults write %s "%s" -date "%s"' %
+                                    (domain, k, dic[k].replace("date:", "")))
+                elif dic[k].startswith('data:'):
+                    if self.data:
+                        cmds.append('defaults write "%s" "%s" -data "%s"' %
+                                    (domain, k, dic[k].replace("data:", "")))
+                else:
+                    cmds.append('defaults write "%s" "%s" -string "%s"' %
+                                (domain, k, dic[k]))
             elif type(dic[k]) == bool:
                 cmds.append('defaults write "%s" "%s" -bool %s' %
                             (domain, k, dic[k]))
@@ -127,17 +152,10 @@ class ParsePlist:
             elif type(dic[k]) == float:
                 cmds.append('defaults write "%s" "%s" -float %s' %
                             (domain, k, dic[k]))
-            elif type(dic[k]) == str:
-                if dic[k].startswith('date:'):
-                    cmds.append('defaults write %s "%s" -date "%s"' %
-                                (domain, k, dic[k].replace("date:", "")))
-                elif dic[k].startswith('data:'):
-                    cmds.append('defaults write "%s" "%s" -data "%s"' %
-                                (domain, k, dic[k].replace("data:", "")))
-            elif type(dic[k]) == list:
+            elif type(dic[k]) == list and self.array:
                 cmds.append('defaults write "%s" "%s" -array %s' %
                             (domain, k, dic[k]))
-            elif type(dic[k]) == dict:
+            elif type(dic[k]) == dict and self.dic:
                 cmds.append('defaults write "%s" "%s" -dict "%s"' %
                             (domain, k, dic[k]))
         return cmds
@@ -206,6 +224,8 @@ def main():
         "--user", action="store_true", default=False, dest='user')
     argparser.add_argument(
         "--system", action="store_true", default=False, dest='system')
+    argparser.add_argument(
+        "-o", "--out", action="store", default='defaults', dest='out')
 
     (ns, args) = argparser.parse_known_args()
     params = vars(ns)

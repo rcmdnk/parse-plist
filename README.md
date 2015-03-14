@@ -1,3 +1,4 @@
 # parse-plist
 
-Converter from plist to defaults commands in OS X.
+Parser of plist in OS X.
+
