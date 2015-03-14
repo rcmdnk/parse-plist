@@ -107,29 +107,13 @@ class ParsePlist:
             elif node.nodeName == 'data':
                 return str("data:"+child0)
 
-    def xml_to_json(self, plist=''):
-        if plist == '' or plist.endswith('.xml'):
-            plist = self.get_xml(plist)
-        cmd = 'plutil -convert json -o - -'.split()
-        plist = plist.replace('<data>', '<string>data:')
-        plist = plist.replace('</data>', '</string>')
-        plist = plist.replace('<date>', '<string>date:')
-        plist = plist.replace('</date>', '</string>')
-        import subprocess
-        return subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT).\
-            communicate(input=plist)[0]
-
     def xml_to_dict(self, plist=''):
-        # from xml.dom import minidom
+        from xml.dom import minidom
         if plist == '' or plist.endswith('.xml'):
             plist = self.get_xml(plist)
-        # import re
-        # dom = minidom.parseString(re.sub('[\x00-\x08\x0D-\x1F]', '', plist))
-        # return self.check_node(dom.documentElement)
-        import json
-        return json.loads(self.xml_to_json(plist))
+        import re
+        dom = minidom.parseString(re.sub('[\x00-\x08\x0D-\x1F]', '', plist))
+        return self.check_node(dom.documentElement)
 
     def dict_to_cmd(self, domain, dic):
         cmds = []
@@ -283,7 +267,7 @@ def main():
             if os.path.isdir(preferences+'.bak'):
                 if os.path.isdir(preferences):
                     move_dir(preferences, preferences+'.tmp')
-                move_dir, sudopass(preferences+'.bak', preferences)
+                move_dir(preferences+'.bak', preferences)
             sys.exit(1)
 
         return [x for x in cmds_current if x not in cmds_orig]
