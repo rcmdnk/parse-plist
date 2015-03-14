@@ -214,9 +214,9 @@ def main():
     import os
 
     if params['user'] or params['system']:
-        if os.environ.get('USER') != 'root':
-            print 'use `sudo` for `--user` or `--system`'
-            sys.exit(1)
+        if os.geteuid() != 0:
+            import getpass
+            sudopass = getpass.getpass("sudo password: ")
 
     parser = ParsePlist(**params)
 
@@ -225,9 +225,7 @@ def main():
     input_type = 'domain'
     if len(args) > 0:
         domain = args[0]
-    if domain == '':
-        cmds = parser.get_cmd()
-    elif domain.endswith('.xml'):
+    if domain.endswith('.xml'):
         if len(args) == 1:
             print "Need domain name for xml file"
             sys.exit(1)
@@ -240,17 +238,38 @@ def main():
     cmds_current = parser.get_cmd(domain, plist, input_type)
     cmds = []
 
+    def move_dir(src, dst, passwd):
+        cmd = 'mv "%s" "%s"' % (src, dst)
+        if passwd == '':
+            os.system(cmd)
+        else:
+            os.system('echo %s|sudo -S %s' % (passwd, cmd))
+
+    def remove_dir(src, passwd):
+        cmd = 'rm -rf "%s"' % (src)
+        if passwd == '':
+            os.system(cmd)
+        else:
+            os.system('echo %s|sudo -S %s' % (passwd, cmd))
+
     def get_diff(parent_dir):
-        import shutil
         preferences = parent_dir + '/Library/Preferences'
         for ext in ['.tmp', '.bak']:
             if os.path.isdir(preferences+ext):
-                shutil.rmtree(preferences+ext)
-        shutil.move(preferences, preferences+'.bak')
-        cmds_orig = parser.get_cmd(domain, plist, input_type)
-        if os.path.isdir(preferences):
-            shutil.move(preferences, preferences+'.tmp')
-        shutil.move(preferences+'.bak', preferences)
+                remove_dir(preferences+ext, sudopass)
+        try:
+            move_dir(preferences, preferences+'.bak', sudopass)
+            cmds_orig = parser.get_cmd(domain, plist, input_type)
+            if os.path.isdir(preferences):
+                move_dir(preferences, preferences+'.tmp', sudopass)
+            move_dir(preferences+'.bak', preferences, sudopass)
+        except KeyboardInterrupt:
+            if os.path.isdir(preferences+'.bak'):
+                if os.path.isdir(preferences):
+                    move_dir(preferences, preferences+'.tmp', sudopass)
+                move_dir(preferences+'.bak', preferences, sudopass)
+            sys.exit(1)
+
         return [x for x in cmds_current if x not in cmds_orig]
 
     if params['user']:
