@@ -6,6 +6,7 @@ install:
   - brew tap rcmdnk/rcmdnkpac
   - brew install parse-plist --HEAD
 script:
+  - echo hoge >/dev/stdout
   #- ls /usr/bin
   #- defaults read com.apple.dock
   #- defaults read
