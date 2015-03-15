@@ -65,10 +65,6 @@ class ParsePlist:
         if plist == '' or plist.endswith('.xml'):
             plist = self.get_xml(plist)
         import json
-        print plist
-        print "**************"
-        print (self.xml_to_json(plist))
-        print "**************"
         return json.loads(self.xml_to_json(plist))
 
     def dict_to_cmd(self, domain, dic):
