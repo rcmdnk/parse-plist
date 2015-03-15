@@ -7,13 +7,13 @@ install:
   - brew install parse-plist --HEAD
 script:
   - defaults read com.apple.dock
-  ## Somehow, below command shows nothingin Travis CI.
-  #- defaults export com.apple.dock -
-  #- parse-plist com.apple.dock
-  #- parse-plist
-  #- parse-plist --user
-  #- parse-plist --all
-  #- parse-plist --out=json
+  # Somehow, below command shows nothingin Travis CI.
+  - defaults export com.apple.dock -
+  - parse-plist com.apple.dock
+  - parse-plist
+  - parse-plist --user
+  - parse-plist --all
+  - parse-plist --out=json
 notifications:
   email:
     recipients:
