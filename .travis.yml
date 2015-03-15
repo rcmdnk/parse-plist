@@ -6,6 +6,9 @@ install:
   - brew tap rcmdnk/rcmdnkpac
   - brew install parse-plist --HEAD
 script:
+  - defaults read com.apple.dock
+  - defaults read
+  - defaults export com.apple.dock -
   - parse-plist com.apple.dock
   - parse-plist
   - parse-plist --user
