@@ -203,21 +203,31 @@ def main():
     import argparse
     argparser = argparse.ArgumentParser(prog=__prog__)
     argparser.add_argument(
-        "--date", action="store_true", default=False, dest='date')
+        "--date", action="store_true", default=False, dest='date',
+        help='Enable "date" output.')
     argparser.add_argument(
-        "--data", action="store_true", default=False, dest='data')
+        "--data", action="store_true", default=False, dest='data',
+        help='Enable "data" output.')
     argparser.add_argument(
-        "--dict", action="store_true", default=False, dest='dict')
+        "--dict", action="store_true", default=False, dest='dict',
+        help='Enable "dict" output.')
     argparser.add_argument(
-        "--array", action="store_true", default=False, dest='array')
+        "--array", action="store_true", default=False, dest='array',
+        help='Enable "array" output.')
     argparser.add_argument(
-        "--all", action="store_true", default=False, dest='alltype')
+        "--all", action="store_true", default=False, dest='alltype',
+        help='Enable all outputs.')
     argparser.add_argument(
-        "--user", action="store_true", default=False, dest='user')
+        "--user", action="store_true", default=False, dest='user',
+        help='Check user settings.')
     argparser.add_argument(
-        "--system", action="store_true", default=False, dest='system')
+        "--system", action="store_true", default=False, dest='system',
+        help='Check system settings.')
     argparser.add_argument(
-        "-o", "--out", action="store", default='cmd', dest='out')
+        "-o", "--out", action="store", default='cmd', dest='out',
+        help='Set output format (defaults commands  or json format).\n'
+             'Default is %(default)s.\n'
+             'Use json/dict/dic for json format. Others for the command list.')
 
     (ns, args) = argparser.parse_known_args()
     params = vars(ns)
