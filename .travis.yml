@@ -2,15 +2,15 @@ language: objective-c
 branches:
   except:
     - /^v[0-9]/
-#install:
-#  - brew tap rcmdnk/rcmdnkpac
-#  - brew install parse-plist
+install:
+  - brew tap rcmdnk/rcmdnkpac
+  - brew install parse-plist --HEAD
 script:
-  - ./bin/parse-plist com.apple.dock
-  - ./bin/parse-plist
-  - ./bin/parse-plist --user
-  - ./bin/parse-plist --all
-  - ./bin/parse-plist --out=json
+  - parse-plist com.apple.dock
+  - parse-plist
+  - parse-plist --user
+  - parse-plist --all
+  - parse-plist --out=json
 notifications:
   email:
     recipients:
