@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 """
 parse-plist: Parse OS X's plist to defaults commands
 https://github.com/rcmdnk/parse-plist
@@ -58,7 +60,8 @@ class ParsePlist:
         import subprocess
         return subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT).\
+                                stderr=subprocess.STDOUT,
+                                universal_newlines=True).\
             communicate(input=plist)[0]
 
     def xml_to_dict(self, plist=''):
@@ -69,8 +72,12 @@ class ParsePlist:
 
     def dict_to_cmd(self, domain, dic):
         cmds = []
+        types = [str]
+        import sys
+        if sys.version_info.major < 3:
+            types += [unicode]
         for k, v in dic.items():
-            if type(v) == unicode or type(v) == str:
+            if type(v) in types:
                 if v.startswith('date:'):
                     if self.date or self.alltype:
                         cmds.append('defaults write %s "%s" -date "%s"' %
@@ -121,15 +128,16 @@ class ParsePlist:
 
         import subprocess
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
+                             stderr=subprocess.STDOUT,
+                             universal_newlines=True)
         out = p.communicate()[0]
         ret = p.returncode
         if ret != 0:
             import sys
-            print "ERROR: Failed to get plist as xml:"
-            print ""
-            print "$ " + cmd
-            print out
+            print("ERROR: Failed to get plist as xml:")
+            print("")
+            print("$ " + cmd)
+            print(out)
             sys.exit(ret)
         return out
 
@@ -137,15 +145,16 @@ class ParsePlist:
         import subprocess
         cmd = 'defaults domains'.split()
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
+                             stderr=subprocess.STDOUT,
+                             universal_newlines=True)
         out = p.communicate()[0]
         ret = p.returncode
         if ret != 0:
             import sys
-            print "ERROR: Failed to get domains:"
-            print ""
-            print "$ " + cmd
-            print out
+            print("ERROR: Failed to get domains:")
+            print("")
+            print("$ " + cmd)
+            print(out)
             sys.exit(ret)
         return [x.strip() for x in out.split(',')]
 
@@ -315,14 +324,15 @@ def main():
     if not params['user'] and not params['system']:
         out_list = current_list
 
-    import codecs
-    sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
+    if sys.version_info.major < 3:
+        import codecs
+        sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
     if type(out_list) == list:
         for c in out_list:
-            print c
+            print(c)
     elif type(out_list) == dict:
         import json
-        print json.dumps(out_list, indent=2)
+        print(json.dumps(out_list, indent=2))
 
 if __name__ == "__main__":
     main()
